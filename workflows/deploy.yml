@@ -1,47 +1,49 @@
-name: Build & Deploy to Spaceship VM
+name: Build & Deploy to VPS
 
 on:
   push:
-    branches: [main]          # adjust if you deploy from another branch
+    branches: [main]          # deploy when main is updated
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-    # 1) Check out code
-    - uses: actions/checkout@v4
+      # 1) Check out repository contents
+      - uses: actions/checkout@v4
 
-    # 2) Set up Node 20 (LTS) :contentReference[oaicite:0]{index=0}
-    - uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'          # speeds up installs
+      # 2) Set up Node 20 and cache npm
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
 
-    # 3) Install dependencies & build
-    - run: npm ci             # reproducible install
-    - run: npm run build      # vite build -> dist/
+      # 3) Install dependencies and build Vite project
+      - run: npm ci
+      - run: npm run build          # outputs to dist/
 
-    # 4) Copy dist/ to the server (appleboy/scp-action) :contentReference[oaicite:1]{index=1}
-    - name: Upload files via SCP
-      uses: appleboy/scp-action@v0.1.4
-      with:
-        host:      ${{ secrets.SSH_HOST }}
-        username:  ${{ secrets.SSH_USER }}
-        key:       ${{ secrets.SSH_PRIVATE_KEY }}
-        port:      ${{ secrets.SSH_PORT }}
-        source:    "dist/*"
-        target:    "/home/ftpuser/app/dist"   # pick any directory you own
+      # 4) Copy dist/ to the VPS via SCP
+      - name: Upload files via SCP
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host:      "209.74.81.251"          # <── hard-coded host
+          username:  "root"                   # <── hard-coded user
+          port:      "22022"                  # <── custom SSH port
+          key:       "${{ secrets.SSH_PRIVATE_KEY }}"  # only secret needed
+          source:    "dist/*"
+          target:    "/root/app/dist"         # destination on the server
+          strip_components: 1                 # optional; removes leading path parts
 
-    # 5) Restart or start the site with PM2 over SSH (appleboy/ssh-action) :contentReference[oaicite:2]{index=2}
-    - name: Reload PM2
-      uses: appleboy/ssh-action@v0.1.6
-      with:
-        host:      ${{ secrets.SSH_HOST }}
-        username:  ${{ secrets.SSH_USER }}
-        key:       ${{ secrets.SSH_PRIVATE_KEY }}
-        port:      ${{ secrets.SSH_PORT }}
-        script: |
-          #!/bin/bash
-          pm2 reload syrup \
-            || pm2 start serve --name syrup -- -s /home/ftpuser/app/dist -l 0.0.0.0:3000
+      # 5) Reload (or start) the PM2 process over SSH
+      - name: Reload PM2
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host:      "209.74.81.251"
+          username:  "root"
+          port:      "22022"
+          key:       "${{ secrets.SSH_PRIVATE_KEY }}"
+          script: |
+            #!/bin/bash
+            pm2 reload syrup \
+              || pm2 start serve --name syrup -- \
+                   -s /root/app/dist -l 0.0.0.0:3000
