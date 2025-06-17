@@ -41,4 +41,7 @@ jobs:
           script: |
             pm2 reload syrup \
               || pm2 start serve --name syrup -- \
-                   -s /var/www/syrup/dist -l 3000   # <── changed
+                  -s /var/www/syrup/dist \
+                  -l tcp://0.0.0.0:3000 \
+                  --no-clipboard \
+                  -c 0
