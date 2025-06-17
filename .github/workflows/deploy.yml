@@ -42,5 +42,5 @@ jobs:
             pm2 reload syrup \
               || pm2 start serve --name syrup -- \
                   -s /var/www/syrup/dist \
-                  -l 3000 \
+                  -l 4000 \
                   --no-clipboard
