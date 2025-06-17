@@ -1,49 +1,44 @@
-name: Build & Deploy to VPS
+name: Build & Deploy
 
 on:
   push:
-    branches: [main]          # deploy when main is updated
+    branches: [main]            # triggers on every push to main
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1) Check out repository contents
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-      # 2) Set up Node 20 and cache npm
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
+    - uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+        cache: "npm"
 
-      # 3) Install dependencies and build Vite project
-      - run: npm ci
-      - run: npm run build          # outputs to dist/
+    - run: npm ci
+    - run: npm run build        # vite → dist/
 
-      # 4) Copy dist/ to the VPS via SCP
-      - name: Upload files via SCP
-        uses: appleboy/scp-action@v0.1.4
-        with:
-          host:      "209.74.81.251"          # <── hard-coded host
-          username:  "root"                   # <── hard-coded user
-          port:      "22022"                  # <── custom SSH port
-          key:       "${{ secrets.SSH_PRIVATE_KEY }}"  # only secret needed
-          source:    "dist/*"
-          target:    "/root/app/dist"         # destination on the server
-          strip_components: 1                 # optional; removes leading path parts
+    # Copy dist/ files to the server
+    - name: Upload via SCP
+      uses: appleboy/scp-action@v0.1.4
+      with:
+        host: "209.74.81.251"
+        username: "root"
+        port: "22022"
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        source: "dist/*"
+        target: "/root/app/dist"
 
-      # 5) Reload (or start) the PM2 process over SSH
-      - name: Reload PM2
-        uses: appleboy/ssh-action@v0.1.6
-        with:
-          host:      "209.74.81.251"
-          username:  "root"
-          port:      "22022"
-          key:       "${{ secrets.SSH_PRIVATE_KEY }}"
-          script: |
-            #!/bin/bash
-            pm2 reload syrup \
-              || pm2 start serve --name syrup -- \
-                   -s /root/app/dist -l 0.0.0.0:3000
+    # Restart or start the site with PM2
+    - name: Reload PM2
+      uses: appleboy/ssh-action@v0.1.6
+      with:
+        host: "209.74.81.251"
+        username: "root"
+        port: "22022"
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          pm2 reload syrup \
+            || pm2 start serve --name syrup -- \
+                 -s /root/app/dist -l 0.0.0.0:3000
