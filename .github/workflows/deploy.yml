@@ -2,43 +2,43 @@ name: Build & Deploy
 
 on:
   push:
-    branches: [main]            # triggers on every push to main
+    branches: [main]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - uses: actions/setup-node@v4
-      with:
-        node-version: "20"
-        cache: "npm"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
 
-    - run: npm ci
-    - run: npm run build        # vite → dist/
+      - run: npm ci
+      - run: npm run build          # vite → dist/
 
-    # Copy dist/ files to the server
-    - name: Upload via SCP
-      uses: appleboy/scp-action@v0.1.4
-      with:
-        host: "209.74.81.251"
-        username: "root"
-        port: "22022"
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "dist/*"
-        target: "/root/app/dist"
+      # ---- 1. Copy to the live folder on the VPS ----
+      - name: Upload via SCP
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: "209.74.81.251"
+          username: "root"
+          port: "22022"
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "dist/*"
+          target: "/var/www/syrup/dist"      # <── changed
 
-    # Restart or start the site with PM2
-    - name: Reload PM2
-      uses: appleboy/ssh-action@v0.1.6
-      with:
-        host: "209.74.81.251"
-        username: "root"
-        port: "22022"
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        script: |
-          pm2 reload syrup \
-            || pm2 start serve --name syrup -- \
-                 -s /root/app/dist -l 0.0.0.0:3000
+      # ---- 2. Reload (or start) PM2 from that folder ----
+      - name: Reload PM2
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: "209.74.81.251"
+          username: "root"
+          port: "22022"
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            pm2 reload syrup \
+              || pm2 start serve --name syrup -- \
+                   -s /var/www/syrup/dist -l 3000   # <── changed
