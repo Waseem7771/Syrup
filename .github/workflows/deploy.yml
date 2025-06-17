@@ -1,4 +1,4 @@
-name: Build & Deploy
+name: 🚀 Deploy to VPS
 
 on:
   push:
@@ -13,34 +13,54 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "npm"
+          node-version: 20
+          cache: npm
 
-      - run: npm ci
-      - run: npm run build          # vite  dist/
-
-      # ---- 1. Copy to the live folder on the VPS ----
-      - name: Upload via SCP
-        uses: appleboy/scp-action@v0.1.4
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v0.1.10
         with:
-          host: "209.74.81.251"
-          username: "root"
-          port: "22022"
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "dist/*"
-          target: "/var/www/syrup/dist"      # <── changed
-
-      # ---- 2. Reload (or start) PM2 from that folder ----
-      - name: Reload PM2
-        uses: appleboy/ssh-action@v0.1.6
-        with:
-          host: "209.74.81.251"
-          username: "root"
-          port: "22022"
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          host: 209.74.81.251                  # Your VPS IP
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}  # Use your saved private key in GitHub Secrets
+          port: 22022
           script: |
-            pm2 reload syrup \
-              || pm2 start serve --name syrup -- \
-                  -s /var/www/syrup/dist \
-                  -l 4000 \
-                  --no-clipboard
+            set -e
+
+            # ── 1. Clone or update repo ────────────────────────────────
+            if [ ! -d /var/www/syrup/.git ]; then
+              mkdir -p /var/www
+              cd /var/www
+              git clone https://github.com/Waseem7771/Syrup.git syrup
+            fi
+
+            cd /var/www/syrup
+            git fetch origin main
+            git reset --hard origin/main
+
+            # ── 2. Setup environment (.env) ─────────────────────────────
+            echo "Setting up .env file..."
+            cat <<EOF > .env
+            VITE_API_URL=https://api.syrup.com
+            EMAIL_HOST=smtp.example.com
+            EMAIL_USER=admin@syrup.com
+            EMAIL_PASS=yourpassword
+            EOF
+
+            # ── 3. Install dependencies ─────────────────────────────────
+            npm ci
+
+            # ── 4. Build frontend ───────────────────────────────────────
+            npm run build   # Assumes this runs Vite build into dist/
+
+            # ── 5. Install PM2 if missing ───────────────────────────────
+            if ! command -v pm2 >/dev/null 2>&1; then
+              npm install -g pm2
+            fi
+
+            # ── 6. Start or reload PM2 serve process ────────────────────
+            if pm2 list | grep -q syrup; then
+              pm2 delete syrup
+            fi
+
+            pm2 start npx --name syrup -- serve dist -l 3000 --no-clipboard
+            pm2 save
