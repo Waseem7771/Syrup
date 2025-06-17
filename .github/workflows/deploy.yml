@@ -30,7 +30,7 @@ jobs:
             if [ ! -d /var/www/syrup/.git ]; then
               mkdir -p /var/www
               cd /var/www
-              git clone https://github.com/Waseem7771/Syrup.git syrup
+              git clone git@github.com:Waseem7771/Syrup.git syrup 
             fi
 
             cd /var/www/syrup
