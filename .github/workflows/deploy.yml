@@ -38,11 +38,11 @@ jobs:
           username: "root"
           port: "22022"
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-script: |
-  pm2 reload syrup \
-    || pm2 start serve --name syrup -- \
-         -s /var/www/syrup/dist \
-         -l 3000 \
-         -H 0.0.0.0 \
-         -c 0 \
-         --no-clipboard
+          script: |
+            pm2 reload syrup \
+              || pm2 start serve --name syrup -- \
+                  -s /var/www/syrup/dist \
+                  -l 3000 \
+                  -H 0.0.0.0 \
+                  -c 0 \
+                  --no-clipboard
