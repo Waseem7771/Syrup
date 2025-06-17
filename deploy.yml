@@ -1,47 +1,57 @@
-name: Build & Deploy to Spaceship VM
-
+name: 🚀 Deploy Syrup to VPS
 on:
   push:
-    branches: [main]          # adjust if you deploy from another branch
+    branches: [master]          # 👉 deploy only when master is updated
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-    # 1) Check out code
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
-    # 2) Set up Node 20 (LTS) :contentReference[oaicite:0]{index=0}
-    - uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'          # speeds up installs
+      # ── 1.  Install Node and cache npm ────────────────────────────────
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18        # use any version you need
+          cache: npm
 
-    # 3) Install dependencies & build
-    - run: npm ci             # reproducible install
-    - run: npm run build      # vite build -> dist/
+      # ── 2.  SSH into the VPS and run everything there ────────────────
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: 209.74.81.251          # ← your new VPS IP
+          username: root               # or ftpuser if you prefer
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: 22022
+          script: |
+            set -e
 
-    # 4) Copy dist/ to the server (appleboy/scp-action) :contentReference[oaicite:1]{index=1}
-    - name: Upload files via SCP
-      uses: appleboy/scp-action@v0.1.4
-      with:
-        host:      ${{ secrets.SSH_HOST }}
-        username:  ${{ secrets.SSH_USER }}
-        key:       ${{ secrets.SSH_PRIVATE_KEY }}
-        port:      ${{ secrets.SSH_PORT }}
-        source:    "dist/*"
-        target:    "/home/ftpuser/app/dist"   # pick any directory you own
+            # 1. Clone repo first time, otherwise pull latest ------------
+            if [ ! -d /var/www/syrup/.git ]; then
+              mkdir -p /var/www
+              cd /var/www
+              git clone git@github.com:Waseem7771/Syrup.git syrup
+            fi
 
-    # 5) Restart or start the site with PM2 over SSH (appleboy/ssh-action) :contentReference[oaicite:2]{index=2}
-    - name: Reload PM2
-      uses: appleboy/ssh-action@v0.1.6
-      with:
-        host:      ${{ secrets.SSH_HOST }}
-        username:  ${{ secrets.SSH_USER }}
-        key:       ${{ secrets.SSH_PRIVATE_KEY }}
-        port:      ${{ secrets.SSH_PORT }}
-        script: |
-          #!/bin/bash
-          pm2 reload syrup \
-            || pm2 start serve --name syrup -- -s /home/ftpuser/app/dist -l 0.0.0.0:3000
+            cd /var/www/syrup
+            git fetch origin master
+            git reset --hard origin/master      # clean, exact copy
+
+            # 2. Install / update dependencies ---------------------------
+            npm ci
+
+            # 3. Build Vite front-end ------------------------------------
+            npm run build                       # creates dist/
+
+            # 4. Ensure serve & pm2 exist --------------------------------
+            if ! command -v pm2 >/dev/null 2>&1; then
+              npm i -g pm2 serve
+            fi
+
+            # 5. Start (or reload) static server via PM2 -----------------
+            if pm2 list | grep -q syrup-site; then
+              pm2 delete syrup-site
+            fi
+            pm2 start serve --name syrup-site -- -s dist -l 0.0.0.0:3000
+            pm2 save                            # survive reboots
