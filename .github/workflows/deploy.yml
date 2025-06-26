@@ -40,10 +40,8 @@ jobs:
             # ── 2. Setup environment (.env) ─────────────────────────────
             echo "Setting up .env file..."
             cat <<EOF > .env
-            VITE_API_URL=https://api.syrup.com
-            EMAIL_HOST=smtp.example.com
-            EMAIL_USER=admin@syrup.com
-            EMAIL_PASS=yourpassword
+            VITE_SUPABASE_URL=https://mbdkieeeoqblgqaglkgn.supabase.co
+            VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1iZGtpZWVlb3FibGdxYWdsa2duIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA5MTQ1MzIsImV4cCI6MjA2NjQ5MDUzMn0.yVkC12xWuo-rGzUGjzSiiOyj-EqarHRq1UIj3JOQzQA
             EOF
 
             # ── 3. Install dependencies ─────────────────────────────────
