@@ -8,6 +8,7 @@ import { useTranslation } from '../hooks/useTranslation';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
+import { sendEmailNotification } from '../lib/emailNotification';
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
@@ -116,6 +117,28 @@ const Register: React.FC = () => {
       
       if (error) throw error;
       
+      // Send email notification
+      if (data) {
+        await sendEmailNotification(
+          {
+            company_name: formData.company_name,
+            company_type: formData.company_type,
+            business_activity: formData.business_activity,
+            founder_name: formData.founder_name,
+            founder_email: formData.founder_email,
+            founder_phone: formData.founder_phone,
+            founder_nationality: formData.founder_nationality,
+            partners_count: formData.partners_count,
+            estimated_capital: formData.estimated_capital,
+            has_location: formData.has_location === 'yes',
+            location_city: formData.location_city,
+            requires_consultation: formData.requires_consultation,
+            services: formData.services
+          }, 
+          'registration'
+        );
+      }
+      
       toast.success(t('register.success.message'));
       
       // Reset form
@@ -175,6 +198,20 @@ const Register: React.FC = () => {
         ]);
       
       if (error) throw error;
+      
+      // Send email notification
+      if (data) {
+        await sendEmailNotification(
+          {
+            name: ideaContact.name,
+            email: ideaContact.email,
+            phone: ideaContact.phone,
+            subject: `Idea Submission: ${ideaTopic}`,
+            message: ideaText
+          }, 
+          'idea'
+        );
+      }
       
       toast.success(language === 'ar' 
         ? 'تم إرسال فكرتك بنجاح!' 

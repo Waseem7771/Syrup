@@ -19,6 +19,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useTranslation } from '../hooks/useTranslation';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
+import { sendEmailNotification } from '../lib/emailNotification';
 
 const VisaResidency: React.FC = () => {
   const navigate = useNavigate();
@@ -148,6 +149,28 @@ const VisaResidency: React.FC = () => {
         ]);
       
       if (error) throw error;
+      
+      // Send email notification
+      if (data) {
+        await sendEmailNotification(
+          {
+            service_type: formData.serviceType,
+            full_name: formData.fullName,
+            nationality: formData.nationality,
+            passport_number: formData.passportNumber,
+            passport_expiry: formData.passportExpiry,
+            email: formData.email,
+            phone: formData.phone,
+            company_name: formData.companyName,
+            business_type: formData.businessType,
+            planned_stay_duration: formData.plannedStayDuration,
+            entry_date: formData.entryDate,
+            purpose_of_stay: formData.purposeOfStay,
+            reference_number: refNumber
+          }, 
+          'visa'
+        );
+      }
       
       setReferenceNumber(refNumber);
       setSubmitted(true);
