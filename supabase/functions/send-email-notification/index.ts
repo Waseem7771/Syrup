@@ -121,7 +121,7 @@ serve(async (req) => {
     // In a real implementation, you would use an email service API here
     // Example with a hypothetical email service:
 
-const resendApiKey = Deno.env.get('re_inV5KxxQ_6SUBdJwnmGJPmkUR1jgVsXiL'); // Or whatever you named your secret
+const resendApiKey = Deno.env.get('RESEND_API_KEY'); // Or whatever you named your secret
 
 if (!resendApiKey) {
   throw new Error('RESEND_API_KEY is not set in Supabase secrets.');
