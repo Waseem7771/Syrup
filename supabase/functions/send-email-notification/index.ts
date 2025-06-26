@@ -28,7 +28,7 @@ serve(async (req) => {
     const { record, type } = await req.json();
 
     // Email configuration
-    const emailTo = 'your-email@example.com'; // Replace with your email
+    const emailTo = 'Sketcher.7771@gmail.com'; // Replace with your email
     const emailFrom = 'noreply@syriastartups.com';
     
     let subject = '';
