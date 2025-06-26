@@ -120,25 +120,35 @@ serve(async (req) => {
     
     // In a real implementation, you would use an email service API here
     // Example with a hypothetical email service:
-    /*
-    const response = await fetch('https://api.emailservice.com/send', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${Deno.env.get('EMAIL_API_KEY')}`
-      },
-      body: JSON.stringify({
-        from: emailFrom,
-        to: emailTo,
-        subject: subject,
-        html: content
-      })
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to send email');
-    }
-    */
+
+const resendApiKey = Deno.env.get('re_inV5KxxQ_6SUBdJwnmGJPmkUR1jgVsXiL'); // Or whatever you named your secret
+
+if (!resendApiKey) {
+  throw new Error('RESEND_API_KEY is not set in Supabase secrets.');
+}
+
+const resendResponse = await fetch('https://api.resend.com/emails', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${resendApiKey}`,
+  },
+  body: JSON.stringify({
+    from: emailFrom, // e.g., 'onboarding@resend.dev' or your verified domain email
+    to: emailTo,
+    subject: subject,
+    html: content,
+  }),
+});
+
+if (!resendResponse.ok) {
+  const errorData = await resendResponse.json();
+  console.error('Failed to send email via Resend:', errorData);
+  throw new Error(`Failed to send email: ${resendResponse.statusText}`);
+}
+
+console.log('Email sent successfully via Resend!');
+// ... (rest of the function)
     
     return new Response(
       JSON.stringify({ success: true, message: 'Notification sent' }),
