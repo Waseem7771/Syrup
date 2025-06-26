@@ -17,6 +17,8 @@ import PageHeader from '../components/common/PageHeader';
 import Section from '../components/common/Section';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useTranslation } from '../hooks/useTranslation';
+import { supabase } from '../lib/supabase';
+import toast from 'react-hot-toast';
 
 const VisaResidency: React.FC = () => {
   const navigate = useNavigate();
@@ -38,9 +40,9 @@ const VisaResidency: React.FC = () => {
     plannedStayDuration: '',
     entryDate: '',
     purposeOfStay: '',
-    passportScan: null,
-    photograph: null,
-    businessDocuments: null
+    passportScan: null as File | null,
+    photograph: null as File | null,
+    businessDocuments: null as File | null
   });
   
   // Process state
@@ -48,7 +50,7 @@ const VisaResidency: React.FC = () => {
   const [submitted, setSubmitted] = useState(false);
   const [referenceNumber, setReferenceNumber] = useState('');
 
-  const handleServiceSelection = (service) => {
+  const handleServiceSelection = (service: string) => {
     setFormData({
       ...formData,
       serviceType: service
@@ -56,7 +58,7 @@ const VisaResidency: React.FC = () => {
     setStep(2);
   };
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData({
       ...formData,
@@ -64,7 +66,7 @@ const VisaResidency: React.FC = () => {
     });
   };
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, files } = e.target;
     if (files && files[0]) {
       setFormData({
@@ -74,18 +76,90 @@ const VisaResidency: React.FC = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Simulate API call
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Generate reference number
       const refNumber = 'VSA-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+      
+      // Handle file uploads if needed
+      let passportScanUrl = null;
+      let photographUrl = null;
+      let businessDocumentsUrl = null;
+      
+      if (formData.passportScan) {
+        const fileExt = formData.passportScan.name.split('.').pop();
+        const fileName = `${refNumber}-passport.${fileExt}`;
+        const { data: passportData, error: passportError } = await supabase.storage
+          .from('visa-documents')
+          .upload(fileName, formData.passportScan);
+          
+        if (passportError) throw passportError;
+        passportScanUrl = passportData?.path;
+      }
+      
+      if (formData.photograph) {
+        const fileExt = formData.photograph.name.split('.').pop();
+        const fileName = `${refNumber}-photo.${fileExt}`;
+        const { data: photoData, error: photoError } = await supabase.storage
+          .from('visa-documents')
+          .upload(fileName, formData.photograph);
+          
+        if (photoError) throw photoError;
+        photographUrl = photoData?.path;
+      }
+      
+      if (formData.businessDocuments) {
+        const fileExt = formData.businessDocuments.name.split('.').pop();
+        const fileName = `${refNumber}-business.${fileExt}`;
+        const { data: docsData, error: docsError } = await supabase.storage
+          .from('visa-documents')
+          .upload(fileName, formData.businessDocuments);
+          
+        if (docsError) throw docsError;
+        businessDocumentsUrl = docsData?.path;
+      }
+      
+      // Submit to Supabase
+      const { data, error } = await supabase
+        .from('visa_applications')
+        .insert([
+          {
+            service_type: formData.serviceType,
+            full_name: formData.fullName,
+            nationality: formData.nationality,
+            passport_number: formData.passportNumber,
+            passport_expiry: formData.passportExpiry,
+            email: formData.email,
+            phone: formData.phone,
+            company_name: formData.companyName,
+            business_type: formData.businessType,
+            planned_stay_duration: formData.plannedStayDuration,
+            entry_date: formData.entryDate,
+            purpose_of_stay: formData.purposeOfStay,
+            passport_scan_url: passportScanUrl,
+            photograph_url: photographUrl,
+            business_documents_url: businessDocumentsUrl,
+            reference_number: refNumber,
+            status: 'pending'
+          }
+        ]);
+      
+      if (error) throw error;
+      
       setReferenceNumber(refNumber);
       setSubmitted(true);
+      toast.success(language === 'ar' 
+        ? 'تم تقديم طلبك بنجاح!' 
+        : 'Your application has been submitted successfully!');
+      
     } catch (error) {
       console.error('Error submitting application', error);
+      toast.error(language === 'ar' 
+        ? 'حدث خطأ أثناء تقديم طلبك. يرجى المحاولة مرة أخرى.' 
+        : 'An error occurred while submitting your application. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -929,6 +1003,7 @@ const VisaResidency: React.FC = () => {
                     type="button"
                     onClick={() => setStep(prev => prev - 1)}
                     className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    disabled={isSubmitting}
                   >
                     <ArrowLeft className="w-4 h-4" />
                     {language === 'ar' ? 'السابق' : 'Previous'}
@@ -939,6 +1014,7 @@ const VisaResidency: React.FC = () => {
                       type="button"
                       onClick={() => setStep(prev => prev + 1)}
                       className="flex items-center gap-2 bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary-dark transition-colors"
+                      disabled={isSubmitting}
                     >
                       {language === 'ar' ? 'التالي' : 'Next'}
                       <ArrowRight className="w-4 h-4" />
@@ -951,7 +1027,10 @@ const VisaResidency: React.FC = () => {
                     >
                       {isSubmitting ? (
                         <>
-                          <span className="animate-spin mr-2">⚪</span>
+                          <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
                           {language === 'ar' ? 'جاري المعالجة...' : 'Processing...'}
                         </>
                       ) : (

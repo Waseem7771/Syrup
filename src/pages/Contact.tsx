@@ -5,6 +5,8 @@ import Section from '../components/common/Section';
 import { Mail, Phone, MapPin, Send } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useTranslation } from '../hooks/useTranslation';
+import { supabase } from '../lib/supabase';
+import toast from 'react-hot-toast';
 
 const Contact: React.FC = () => {
   const { language } = useLanguage();
@@ -53,7 +55,7 @@ const Contact: React.FC = () => {
     return !Object.values(errors).some(error => error);
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) {
@@ -62,9 +64,27 @@ const Contact: React.FC = () => {
     
     setIsSubmitting(true);
     
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      // Submit to Supabase
+      const { data, error } = await supabase
+        .from('contact_messages')
+        .insert([
+          {
+            name: formData.name,
+            email: formData.email,
+            phone: formData.phone,
+            subject: formData.subject,
+            message: formData.message,
+            status: 'unread'
+          }
+        ]);
+      
+      if (error) throw error;
+      
       setSubmitSuccess(true);
+      toast.success(t('contact.form.success'));
+      
+      // Reset form
       setFormData({
         name: '',
         email: '',
@@ -73,10 +93,14 @@ const Contact: React.FC = () => {
         message: ''
       });
       
-      setTimeout(() => {
-        setSubmitSuccess(false);
-      }, 5000);
-    }, 1500);
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      toast.error(language === 'ar' 
+        ? 'حدث خطأ أثناء إرسال الرسالة. يرجى المحاولة مرة أخرى.'
+        : 'An error occurred while sending your message. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   
   const contactMethods = [

@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { ArrowLeft, ArrowRight, Check, Building, FileText, Scale, Info } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
 import Section from '../components/common/Section';
-import { ArrowLeft, ArrowRight, Check, Building, FileText, Scale, Info } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useTranslation } from '../hooks/useTranslation';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
+import toast from 'react-hot-toast';
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
@@ -33,22 +35,22 @@ const Register: React.FC = () => {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     // Step 1: Company Information
-    companyName: '',
-    companyType: '',
-    businessActivity: '',
+    company_name: '',
+    company_type: '',
+    business_activity: '',
     
     // Step 2: Founder Information
-    founderName: '',
-    founderEmail: '',
-    founderPhone: '',
-    founderNationality: language === 'ar' ? 'سوري' : 'Syrian',
-    partnersCount: '1',
+    founder_name: '',
+    founder_email: '',
+    founder_phone: '',
+    founder_nationality: language === 'ar' ? 'سوري' : 'Syrian',
+    partners_count: '1',
     
     // Step 3: Additional Information
-    estimatedCapital: '',
-    hasLocation: 'no',
-    locationCity: '',
-    requiresConsultation: false,
+    estimated_capital: '',
+    has_location: 'no',
+    location_city: '',
+    requires_consultation: false,
     
     // Step 4: Service Selection
     services: {
@@ -58,6 +60,8 @@ const Register: React.FC = () => {
       workspace: false
     }
   });
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const updateFormData = (field: string, value: string | boolean) => {
     setFormData(prev => ({
@@ -84,10 +88,117 @@ const Register: React.FC = () => {
     setStep(prev => Math.max(prev - 1, 1));
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Here you would typically send the data to your backend
-    alert(t('register.success.message'));
+    setIsSubmitting(true);
+    
+    try {
+      // Submit to Supabase
+      const { data, error } = await supabase
+        .from('registrations')
+        .insert([
+          {
+            company_name: formData.company_name,
+            company_type: formData.company_type,
+            business_activity: formData.business_activity,
+            founder_name: formData.founder_name,
+            founder_email: formData.founder_email,
+            founder_phone: formData.founder_phone,
+            founder_nationality: formData.founder_nationality,
+            partners_count: formData.partners_count,
+            estimated_capital: formData.estimated_capital,
+            has_location: formData.has_location === 'yes',
+            location_city: formData.location_city,
+            requires_consultation: formData.requires_consultation,
+            services: formData.services
+          }
+        ]);
+      
+      if (error) throw error;
+      
+      toast.success(t('register.success.message'));
+      
+      // Reset form
+      setFormData({
+        company_name: '',
+        company_type: '',
+        business_activity: '',
+        founder_name: '',
+        founder_email: '',
+        founder_phone: '',
+        founder_nationality: language === 'ar' ? 'سوري' : 'Syrian',
+        partners_count: '1',
+        estimated_capital: '',
+        has_location: 'no',
+        location_city: '',
+        requires_consultation: false,
+        services: {
+          fullfinancial: true,
+          technicalConsultation: false,
+          businessPlan: false,
+          workspace: false
+        }
+      });
+      
+      // Navigate to home page after successful submission
+      setTimeout(() => {
+        navigate('/');
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      toast.error(language === 'ar' 
+        ? 'حدث خطأ أثناء تقديم الطلب. يرجى المحاولة مرة أخرى.'
+        : 'An error occurred while submitting your request. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleIdeaSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    try {
+      // Submit to Supabase contact_messages table as an idea submission
+      const { data, error } = await supabase
+        .from('contact_messages')
+        .insert([
+          {
+            name: ideaContact.name,
+            email: ideaContact.email,
+            phone: ideaContact.phone,
+            subject: `Idea Submission: ${ideaTopic}`,
+            message: ideaText,
+            status: 'unread'
+          }
+        ]);
+      
+      if (error) throw error;
+      
+      toast.success(language === 'ar' 
+        ? 'تم إرسال فكرتك بنجاح!' 
+        : 'Your idea has been submitted successfully!');
+      
+      // Reset form data
+      setStartChoice(null);
+      setIdeaTopic('');
+      setIdeaText('');
+      setIdeaContact({ name: '', email: '', phone: '' });
+      
+      // Navigate to the home page
+      setTimeout(() => {
+        navigate('/');
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Error submitting idea:', error);
+      toast.error(language === 'ar' 
+        ? 'حدث خطأ أثناء إرسال فكرتك. يرجى المحاولة مرة أخرى.'
+        : 'An error occurred while submitting your idea. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   
   const companyTypes = [
@@ -122,16 +233,16 @@ const Register: React.FC = () => {
             
             <div className="space-y-4">
               <div>
-                <label htmlFor="companyName" className="block text-gray-700 font-medium mb-2">
+                <label htmlFor="company_name" className="block text-gray-700 font-medium mb-2">
                   {t('register.companyInfo.companyName.label')}
                 </label>
                 <input
-                  id="companyName"
+                  id="company_name"
                   type="text"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder={t('register.companyInfo.companyName.placeholder')}
-                  value={formData.companyName}
-                  onChange={(e) => updateFormData('companyName', e.target.value)}
+                  value={formData.company_name}
+                  onChange={(e) => updateFormData('company_name', e.target.value)}
                   required
                 />
               </div>
@@ -145,15 +256,15 @@ const Register: React.FC = () => {
                     <div 
                       key={type.id}
                       className={`border rounded-lg p-4 cursor-pointer transition-all ${
-                        formData.companyType === type.id ? 'border-primary bg-primary-light/10' : 'border-gray-200 hover:border-primary-light'
+                        formData.company_type === type.id ? 'border-primary bg-primary-light/10' : 'border-gray-200 hover:border-primary-light'
                       }`}
-                      onClick={() => updateFormData('companyType', type.id)}
+                      onClick={() => updateFormData('company_type', type.id)}
                     >
                       <div className="flex items-start">
                         <div className={`w-5 h-5 rounded-full border flex-shrink-0 flex items-center justify-center mr-3 ${
-                          formData.companyType === type.id ? 'border-primary bg-primary' : 'border-gray-300'
+                          formData.company_type === type.id ? 'border-primary bg-primary' : 'border-gray-300'
                         }`}>
-                          {formData.companyType === type.id && <Check size={12} className="text-white" />}
+                          {formData.company_type === type.id && <Check size={12} className="text-white" />}
                         </div>
                         <div>
                           <h3 className="font-medium text-gray-800">{type.name}</h3>
@@ -166,14 +277,14 @@ const Register: React.FC = () => {
               </div>
               
               <div>
-                <label htmlFor="businessActivity" className="block text-gray-700 font-medium mb-2">
+                <label htmlFor="business_activity" className="block text-gray-700 font-medium mb-2">
                   {t('register.companyInfo.businessActivity.label')}
                 </label>
                 <select
-                  id="businessActivity"
+                  id="business_activity"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  value={formData.businessActivity}
-                  onChange={(e) => updateFormData('businessActivity', e.target.value)}
+                  value={formData.business_activity}
+                  onChange={(e) => updateFormData('business_activity', e.target.value)}
                   required
                 >
                   <option value="">{t('register.companyInfo.businessActivity.placeholder')}</option>
@@ -211,29 +322,29 @@ const Register: React.FC = () => {
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="founderName" className="block text-gray-700 font-medium mb-2">
+                  <label htmlFor="founder_name" className="block text-gray-700 font-medium mb-2">
                     {t('register.founderInfo.founderName.label')}
                   </label>
                   <input
-                    id="founderName"
+                    id="founder_name"
                     type="text"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder={t('register.founderInfo.founderName.placeholder')}
-                    value={formData.founderName}
-                    onChange={(e) => updateFormData('founderName', e.target.value)}
+                    value={formData.founder_name}
+                    onChange={(e) => updateFormData('founder_name', e.target.value)}
                     required
                   />
                 </div>
                 
                 <div>
-                  <label htmlFor="founderNationality" className="block text-gray-700 font-medium mb-2">
+                  <label htmlFor="founder_nationality" className="block text-gray-700 font-medium mb-2">
                     {t('register.founderInfo.nationality.label')}
                   </label>
                   <select
-                    id="founderNationality"
+                    id="founder_nationality"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    value={formData.founderNationality}
-                    onChange={(e) => updateFormData('founderNationality', e.target.value)}
+                    value={formData.founder_nationality}
+                    onChange={(e) => updateFormData('founder_nationality', e.target.value)}
                     required
                   >
                     <option value={language === 'ar' ? 'سوري' : 'Syrian'}>
@@ -248,45 +359,45 @@ const Register: React.FC = () => {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="founderEmail" className="block text-gray-700 font-medium mb-2">
+                  <label htmlFor="founder_email" className="block text-gray-700 font-medium mb-2">
                     {t('register.founderInfo.email.label')}
                   </label>
                   <input
-                    id="founderEmail"
+                    id="founder_email"
                     type="email"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder={t('register.founderInfo.email.placeholder')}
-                    value={formData.founderEmail}
-                    onChange={(e) => updateFormData('founderEmail', e.target.value)}
+                    value={formData.founder_email}
+                    onChange={(e) => updateFormData('founder_email', e.target.value)}
                     required
                   />
                 </div>
                 
                 <div>
-                  <label htmlFor="founderPhone" className="block text-gray-700 font-medium mb-2">
+                  <label htmlFor="founder_phone" className="block text-gray-700 font-medium mb-2">
                     {t('register.founderInfo.phone.label')}
                   </label>
                   <input
-                    id="founderPhone"
+                    id="founder_phone"
                     type="tel"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder={t('register.founderInfo.phone.placeholder')}
-                    value={formData.founderPhone}
-                    onChange={(e) => updateFormData('founderPhone', e.target.value)}
+                    value={formData.founder_phone}
+                    onChange={(e) => updateFormData('founder_phone', e.target.value)}
                     required
                   />
                 </div>
               </div>
               
               <div>
-                <label htmlFor="partnersCount" className="block text-gray-700 font-medium mb-2">
+                <label htmlFor="partners_count" className="block text-gray-700 font-medium mb-2">
                   {t('register.founderInfo.partnersCount.label')}
                 </label>
                 <select
-                  id="partnersCount"
+                  id="partners_count"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  value={formData.partnersCount}
-                  onChange={(e) => updateFormData('partnersCount', e.target.value)}
+                  value={formData.partners_count}
+                  onChange={(e) => updateFormData('partners_count', e.target.value)}
                   required
                 >
                   <option value="1">{t('register.founderInfo.partnersCount.options.single')}</option>
@@ -332,14 +443,14 @@ const Register: React.FC = () => {
             
             <div className="space-y-4">
               <div>
-                <label htmlFor="estimatedCapital" className="block text-gray-700 font-medium mb-2">
+                <label htmlFor="estimated_capital" className="block text-gray-700 font-medium mb-2">
                   {t('register.additionalInfo.estimatedCapital.label')}
                 </label>
                 <select
-                  id="estimatedCapital"
+                  id="estimated_capital"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  value={formData.estimatedCapital}
-                  onChange={(e) => updateFormData('estimatedCapital', e.target.value)}
+                  value={formData.estimated_capital}
+                  onChange={(e) => updateFormData('estimated_capital', e.target.value)}
                   required
                 >
                   <option value="">{t('register.additionalInfo.estimatedCapital.placeholder')}</option>
@@ -358,44 +469,44 @@ const Register: React.FC = () => {
                 <div className="flex space-x-4 space-x-reverse">
                   <div 
                     className={`border rounded-lg p-3 cursor-pointer transition-all flex items-center ${
-                      formData.hasLocation === 'yes' ? 'border-primary bg-primary-light/10' : 'border-gray-200 hover:border-primary-light'
+                      formData.has_location === 'yes' ? 'border-primary bg-primary-light/10' : 'border-gray-200 hover:border-primary-light'
                     }`}
-                    onClick={() => updateFormData('hasLocation', 'yes')}
+                    onClick={() => updateFormData('has_location', 'yes')}
                   >
                     <div className={`w-5 h-5 rounded-full border flex-shrink-0 flex items-center justify-center ml-2 ${
-                      formData.hasLocation === 'yes' ? 'border-primary bg-primary' : 'border-gray-300'
+                      formData.has_location === 'yes' ? 'border-primary bg-primary' : 'border-gray-300'
                     }`}>
-                      {formData.hasLocation === 'yes' && <Check size={12} className="text-white" />}
+                      {formData.has_location === 'yes' && <Check size={12} className="text-white" />}
                     </div>
                     <span>{t('register.additionalInfo.hasLocation.yes')}</span>
                   </div>
                   
                   <div 
                     className={`border rounded-lg p-3 cursor-pointer transition-all flex items-center ${
-                      formData.hasLocation === 'no' ? 'border-primary bg-primary-light/10' : 'border-gray-200 hover:border-primary-light'
+                      formData.has_location === 'no' ? 'border-primary bg-primary-light/10' : 'border-gray-200 hover:border-primary-light'
                     }`}
-                    onClick={() => updateFormData('hasLocation', 'no')}
+                    onClick={() => updateFormData('has_location', 'no')}
                   >
                     <div className={`w-5 h-5 rounded-full border flex-shrink-0 flex items-center justify-center ml-2 ${
-                      formData.hasLocation === 'no' ? 'border-primary bg-primary' : 'border-gray-300'
+                      formData.has_location === 'no' ? 'border-primary bg-primary' : 'border-gray-300'
                     }`}>
-                      {formData.hasLocation === 'no' && <Check size={12} className="text-white" />}
+                      {formData.has_location === 'no' && <Check size={12} className="text-white" />}
                     </div>
                     <span>{t('register.additionalInfo.hasLocation.no')}</span>
                   </div>
                 </div>
               </div>
               
-              {formData.hasLocation === 'yes' && (
+              {formData.has_location === 'yes' && (
                 <div>
-                  <label htmlFor="locationCity" className="block text-gray-700 font-medium mb-2">
+                  <label htmlFor="location_city" className="block text-gray-700 font-medium mb-2">
                     {t('register.additionalInfo.locationCity.label')}
                   </label>
                   <select
-                    id="locationCity"
+                    id="location_city"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    value={formData.locationCity}
-                    onChange={(e) => updateFormData('locationCity', e.target.value)}
+                    value={formData.location_city}
+                    onChange={(e) => updateFormData('location_city', e.target.value)}
                     required
                   >
                     <option value="">{t('register.additionalInfo.locationCity.placeholder')}</option>
@@ -411,8 +522,8 @@ const Register: React.FC = () => {
                   <input
                     type="checkbox"
                     className="mt-1"
-                    checked={formData.requiresConsultation}
-                    onChange={(e) => updateFormData('requiresConsultation', e.target.checked)}
+                    checked={formData.requires_consultation}
+                    onChange={(e) => updateFormData('requires_consultation', e.target.checked)}
                   />
                   <span className="mr-2 text-gray-700">
                     {t('register.additionalInfo.requiresConsultation')}
@@ -530,6 +641,7 @@ const Register: React.FC = () => {
                 type="button" 
                 className="btn-outline flex items-center gap-2"
                 onClick={prevStep}
+                disabled={isSubmitting}
               >
                 {language === 'ar' ? <ArrowRight size={16} /> : <ArrowLeft size={16} />}
                 {t('register.steps.previous')}
@@ -537,9 +649,22 @@ const Register: React.FC = () => {
               <button 
                 type="submit" 
                 className="btn-primary flex items-center gap-2"
+                disabled={isSubmitting}
               >
-                {t('register.steps.submit')}
-                <Check size={16} />
+                {isSubmitting ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    {language === 'ar' ? 'جاري الإرسال...' : 'Submitting...'}
+                  </span>
+                ) : (
+                  <>
+                    {t('register.steps.submit')}
+                    <Check size={16} />
+                  </>
+                )}
               </button>
             </div>
           </motion.div>
@@ -602,20 +727,7 @@ const Register: React.FC = () => {
         <Section background="white">
           <div className="max-w-xl mx-auto bg-white rounded-xl shadow p-8 mt-10">
             <form
-              onSubmit={e => {
-                e.preventDefault();
-                // Show the alert and then navigate to home page when user clicks OK
-                window.alert(language === 'ar' ? 'تم إرسال فكرتك بنجاح!' : 'Your idea has been submitted!');
-                
-                // Reset form data
-                setStartChoice(null);
-                setIdeaTopic('');
-                setIdeaText('');
-                setIdeaContact({ name: '', email: '', phone: '' });
-                
-                // Navigate to the home page
-                navigate('/');
-              }}
+              onSubmit={handleIdeaSubmit}
               className="space-y-6"
             >
               <div>
@@ -719,13 +831,25 @@ const Register: React.FC = () => {
                 <button
                   type="submit"
                   className="btn-primary flex-1 py-3 text-lg"
+                  disabled={isSubmitting}
                 >
-                  {language === 'ar' ? 'إرسال الفكرة' : 'Submit Idea'}
+                  {isSubmitting ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      {language === 'ar' ? 'جاري الإرسال...' : 'Submitting...'}
+                    </span>
+                  ) : (
+                    language === 'ar' ? 'إرسال الفكرة' : 'Submit Idea'
+                  )}
                 </button>
                 <button
                   type="button"
                   className="btn-outline flex-1 py-3 text-lg"
                   onClick={() => setStartChoice(null)}
+                  disabled={isSubmitting}
                 >
                   {language === 'ar' ? 'عودة' : 'Back'}
                 </button>
