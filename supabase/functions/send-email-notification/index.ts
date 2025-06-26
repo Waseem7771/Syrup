@@ -1,4 +1,39 @@
-let content = '';
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.7';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: { Authorization: req.headers.get('Authorization')! },
+        },
+      }
+    );
+
+    // Get the request body
+    const { record, type } = await req.json();
+    console.log('Received notification request:', { type, recordId: record?.id });
+
+    // Email configuration
+    const emailTo = 'Sketcher.7771@gmail.com'; // Your email
+    const emailFrom = 'noreply@syriastartups.com';
+    
+    let subject = '';
+    let content = '';
     
     // Format email based on submission type
     if (type === 'registration') {
@@ -75,46 +110,46 @@ let content = '';
       `;
     }
 
-    // Send email using Supabase Edge Function
-    // Note: You'll need to set up an email service like SendGrid, Mailgun, etc.
-    // This is a placeholder for the actual email sending logic
-    
-    // For demonstration, we'll just log the email content
-    console.log(`Email would be sent to: ${emailTo}`);
+    console.log(`Preparing to send email to: ${emailTo}`);
     console.log(`Subject: ${subject}`);
-    console.log(`Content: ${content}`);
     
     // In a real implementation, you would use an email service API here
-    // Example with a hypothetical email service:
-
-const resendApiKey = Deno.env.get('RESEND_API_KEY'); // Or whatever you named your secret
-
-if (!resendApiKey) {
-  throw new Error('RESEND_API_KEY is not set in Supabase secrets.');
-}
-
-const resendResponse = await fetch('https://api.resend.com/emails', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${resendApiKey}`,
-  },
-  body: JSON.stringify({
-    from: emailFrom, // e.g., 'onboarding@resend.dev' or your verified domain email
-    to: emailTo,
-    subject: subject,
-    html: content,
-  }),
-});
-
-if (!resendResponse.ok) {
-  const errorData = await resendResponse.json();
-  console.error('Failed to send email via Resend:', errorData);
-  throw new Error(`Failed to send email: ${resendResponse.statusText}`);
-}
-
-console.log('Email sent successfully via Resend!');
-// ... (rest of the function)
+    // For now, we'll just log the email content for debugging
+    console.log('Email content prepared, would send email with content:', content.substring(0, 100) + '...');
+    
+    // You need to set up an email service like Resend, SendGrid, etc.
+    // Here's an example with Resend:
+    
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    
+    if (!resendApiKey) {
+      console.error('RESEND_API_KEY is not set in Supabase secrets');
+      throw new Error('RESEND_API_KEY is not set in Supabase secrets');
+    }
+    
+    console.log('Sending email via Resend API...');
+    
+    const resendResponse = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${resendApiKey}`,
+      },
+      body: JSON.stringify({
+        from: emailFrom,
+        to: emailTo,
+        subject: subject,
+        html: content,
+      }),
+    });
+    
+    if (!resendResponse.ok) {
+      const errorData = await resendResponse.json();
+      console.error('Failed to send email via Resend:', errorData);
+      throw new Error(`Failed to send email: ${resendResponse.statusText}`);
+    }
+    
+    console.log('Email sent successfully via Resend!');
     
     return new Response(
       JSON.stringify({ success: true, message: 'Notification sent' }),

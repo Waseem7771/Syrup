@@ -7,6 +7,8 @@ import { supabase } from './supabase';
  */
 export const sendEmailNotification = async (record: any, type: 'registration' | 'contact' | 'visa' | 'idea') => {
   try {
+    console.log('Sending email notification:', { type, record });
+    
     const { data, error } = await supabase.functions.invoke('send-email-notification', {
       body: { record, type }
     });
@@ -16,6 +18,7 @@ export const sendEmailNotification = async (record: any, type: 'registration' | 
       return { success: false, error };
     }
     
+    console.log('Email notification sent successfully:', data);
     return { success: true, data };
   } catch (error) {
     console.error('Exception sending email notification:', error);
