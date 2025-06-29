@@ -119,6 +119,8 @@ const Register: React.FC = () => {
       
       // Send email notification
       if (data) {
+        console.log('Attempting to send email notification...');
+
         await sendEmailNotification(
           {
             company_name: formData.company_name,
@@ -138,7 +140,8 @@ const Register: React.FC = () => {
           'registration'
         );
       }
-      
+      console.log('Email notification function called.');
+
       toast.success(t('register.success.message'));
       
       // Reset form
