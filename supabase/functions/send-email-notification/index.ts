@@ -105,11 +105,16 @@ serve(async (req) => {
         <h2>Idea Description</h2>
         <p>${record.message}</p>
         <h2>Contact Information</h2>
-        <p><strong>Name:</strong> ${record.name}</p>
-        <p><strong>Email:</strong> ${record.email}</p>
-        <p><strong>Phone:</strong> ${record.phone || 'Not provided'}</p>
+        <p><strong>name:</strong> ${record.name}</p>
+        <p><strong>email:</strong> ${record.email}</p>
+        <p><strong>phone:</strong> ${record.phone || 'Not provided'}</p>
       `;
     }
+    {
+
+  "type": "contact"
+}
+
 
     console.log(`Preparing to send email to: ${emailTo}`);
     console.log(`Subject: ${subject}`);
