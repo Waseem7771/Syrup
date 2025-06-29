@@ -201,7 +201,7 @@ const Register: React.FC = () => {
         ]);
       
       if (error) throw error;
-      
+      console.log('Supabase insert data:', data);
       // Send email notification
       if (data) {
         await sendEmailNotification(
