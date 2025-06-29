@@ -1,40 +1,60 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.39.7';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS'
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
-serve(async (req)=>{
+
+serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: corsHeaders
-    });
+    return new Response('ok', { headers: corsHeaders });
   }
+
   try {
-    const supabaseClient = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
-      global: {
-        headers: {
-          Authorization: req.headers.get('Authorization')
-        }
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: { Authorization: req.headers.get('Authorization')! },
+        },
       }
-    });
+    );
+
     // Get the request body
     const requestBody = await req.json();
-    console.log('Received request body:', JSON.stringify(requestBody, null, 2));
+    console.log('Raw request body received by edge function:', JSON.stringify(requestBody, null, 2));
+    
     // Extract record and type from the request body
     const { record, type } = requestBody;
-    console.log('Received notification request:', {
+    
+    if (!record) {
+      console.error('No record found in request body');
+      throw new Error('No record found in request body');
+    }
+    
+    if (!type) {
+      console.error('No type found in request body');
+      throw new Error('No type found in request body');
+    }
+    
+    console.log('Processing notification request:', {
       type,
-      recordId: record?.id
+      recordId: record?.id || 'no-id'
     });
-    console.log('Full record data:', JSON.stringify(record, null, 2));
+    
+    console.log('Full record data to be used in email:', JSON.stringify(record, null, 2));
+
     // Email configuration
     const emailTo = 'Sketcher.7771@gmail.com'; // Your email
     const emailFrom = 'noreply@syriastartups.com';
+    
     let subject = '';
     let content = '';
+    
     // Format email based on submission type
     if (type === 'registration') {
       subject = `New Company Registration: ${record.company_name}`;
@@ -51,9 +71,9 @@ serve(async (req)=>{
         <p><strong>Nationality:</strong> ${record.founder_nationality}</p>
         <p><strong>Partners Count:</strong> ${record.partners_count}</p>
         <h2>Additional Information</h2>
-        <p><strong>Estimated Capital:</strong> ${record.estimated_capital}</p>
-        <p><strong>Has Location:</strong> ${record.has_location ? 'Yes' : 'No'}</p>
-        ${record.has_location ? `<p><strong>Location City:</strong> ${record.location_city}</p>` : ''}
+        <p><strong>Estimated Capital:</strong> ${record.estimated_capital || 'Not specified'}</p>
+        <p><strong>Has Location:</strong> ${record.has_location === 'yes' || record.has_location === true ? 'Yes' : 'No'}</p>
+        ${record.has_location === 'yes' || record.has_location === true ? `<p><strong>Location City:</strong> ${record.location_city || 'Not specified'}</p>` : ''}
         <p><strong>Requires Consultation:</strong> ${record.requires_consultation ? 'Yes' : 'No'}</p>
         <h2>Requested Services</h2>
         <ul>
@@ -112,58 +132,80 @@ serve(async (req)=>{
         <p><strong>Email:</strong> ${record.email}</p>
         <p><strong>Phone:</strong> ${record.phone || 'Not provided'}</p>
       `;
+    } else {
+      console.error(`Unknown notification type: ${type}`);
+      throw new Error(`Unknown notification type: ${type}`);
     }
+
     console.log(`Preparing to send email to: ${emailTo}`);
     console.log(`Subject: ${subject}`);
     console.log(`Email content preview: ${content.substring(0, 100)}...`);
+    
+    // You need to set up an email service like Resend, SendGrid, etc.
+    // Here's an example with Resend:
+    
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    
     if (!resendApiKey) {
       console.error('RESEND_API_KEY is not set in Supabase secrets');
       throw new Error('RESEND_API_KEY is not set in Supabase secrets');
     }
+    
     console.log('Sending email via Resend API...');
+    
     const resendResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${resendApiKey}`
+        'Authorization': `Bearer ${resendApiKey}`,
       },
       body: JSON.stringify({
         from: emailFrom,
         to: emailTo,
         subject: subject,
-        html: content
-      })
+        html: content,
+      }),
     });
+    
     if (!resendResponse.ok) {
       const errorData = await resendResponse.json();
       console.error('Failed to send email via Resend:', errorData);
-      throw new Error(`Failed to send email: ${resendResponse.statusText}`);
+      throw new Error(`Failed to send email: ${JSON.stringify(errorData)}`);
     }
+    
     const resendData = await resendResponse.json();
     console.log('Email sent successfully via Resend!', resendData);
-    return new Response(JSON.stringify({
-      success: true,
-      message: 'Notification sent',
-      data: resendData
-    }), {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
+    
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        message: 'Notification sent', 
+        data: resendData 
+      }),
+      { 
+        headers: { 
+          ...corsHeaders,
+          'Content-Type': 'application/json' 
+        } 
       }
-    });
+    );
   } catch (error) {
     console.error('Error sending notification:', error);
     console.error('Error details:', error.stack || 'No stack trace available');
-    return new Response(JSON.stringify({
-      success: false,
-      error: error.message
-    }), {
-      status: 500,
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
+    
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: error.message || 'Unknown error occurred',
+        stack: error.stack || 'No stack trace available'
+      }),
+      { 
+        status: 500,
+        headers: { 
+          ...corsHeaders,
+          'Content-Type': 'application/json' 
+        } 
       }
-    });
+    );
   }
 });
