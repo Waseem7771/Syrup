@@ -95,6 +95,9 @@ const Register: React.FC = () => {
     
     try {
       // Submit to Supabase
+      console.log('Submitting registration form...');
+      console.log('Form data:', JSON.stringify(formData, null, 2));
+      
       const { data, error } = await supabase
         .from('registrations')
         .insert([
@@ -115,33 +118,33 @@ const Register: React.FC = () => {
           }
         ]);
       
-      if (error) throw error;
-      console.log('Supabase insert data:', data);
+      if (error) {
+        console.error('Error submitting to Supabase:', error);
+        throw error;
+      }
+      
+      console.log('Registration form submitted successfully to Supabase:', data);
       
       // Send email notification
       if (data) {
-        console.log('Attempting to send email notification...');
+        console.log('Attempting to send email notification for registration...');
         
-        await sendEmailNotification(
-          {
-            company_name: formData.company_name,
-            company_type: formData.company_type,
-            business_activity: formData.business_activity,
-            founder_name: formData.founder_name,
-            founder_email: formData.founder_email,
-            founder_phone: formData.founder_phone,
-            founder_nationality: formData.founder_nationality,
-            partners_count: formData.partners_count,
-            estimated_capital: formData.estimated_capital,
-            has_location: formData.has_location === 'yes',
-            location_city: formData.location_city,
-            requires_consultation: formData.requires_consultation,
-            services: formData.services
-          }, 
+        const record = data[0]; // Get the first record from the inserted data
+        console.log('Record to send in notification:', JSON.stringify(record, null, 2));
+        
+        const emailResult = await sendEmailNotification(
+          record,
           'registration'
         );
+        
+        console.log('Email notification result:', emailResult);
+        
+        if (!emailResult.success) {
+          console.warn('Email notification failed but form was submitted:', emailResult.error);
+        } else {
+          console.log('Email notification for registration completed successfully');
+        }
       }
-      console.log('Email notification function called.');
       
       toast.success(t('register.success.message'));
       
@@ -188,6 +191,15 @@ const Register: React.FC = () => {
     
     try {
       // Submit to Supabase contact_messages table as an idea submission
+      console.log('Submitting idea form...');
+      console.log('Idea data:', {
+        name: ideaContact.name,
+        email: ideaContact.email,
+        phone: ideaContact.phone,
+        subject: `Idea Submission: ${ideaTopic}`,
+        message: ideaText
+      });
+      
       const { data, error } = await supabase
         .from('contact_messages')
         .insert([
@@ -201,14 +213,18 @@ const Register: React.FC = () => {
           }
         ]);
       
-      if (error) throw error;
-      console.log('Supabase insert data:', data);
+      if (error) {
+        console.error('Error submitting to Supabase:', error);
+        throw error;
+      }
+      
+      console.log('Idea form submitted successfully to Supabase:', data);
       
       // Send email notification
       if (data) {
-        console.log('Attempting to send email notification...');
+        console.log('Attempting to send email notification for idea submission...');
         
-        await sendEmailNotification(
+        const emailResult = await sendEmailNotification(
           {
             name: ideaContact.name,
             email: ideaContact.email,
@@ -218,8 +234,15 @@ const Register: React.FC = () => {
           }, 
           'idea'
         );
+        
+        console.log('Email notification result:', emailResult);
+        
+        if (!emailResult.success) {
+          console.warn('Email notification failed but form was submitted:', emailResult.error);
+        } else {
+          console.log('Email notification for idea submission completed successfully');
+        }
       }
-      console.log('Email notification function called.');
       
       toast.success(language === 'ar' 
         ? 'تم إرسال فكرتك بنجاح!' 

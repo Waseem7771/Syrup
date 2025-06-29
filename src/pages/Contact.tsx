@@ -67,6 +67,7 @@ const Contact: React.FC = () => {
     
     try {
       console.log('Submitting contact form...');
+      console.log('Form data:', JSON.stringify(formData, null, 2));
       
       // Submit to Supabase
       const { data, error } = await supabase
@@ -82,15 +83,18 @@ const Contact: React.FC = () => {
           }
         ]);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error submitting to Supabase:', error);
+        throw error;
+      }
       
-      console.log('Contact form submitted successfully:', data);
+      console.log('Contact form submitted successfully to Supabase:', data);
       
       // Send email notification
       if (data) {
         console.log('Attempting to send email notification for contact form...');
         
-        await sendEmailNotification(
+        const emailResult = await sendEmailNotification(
           {
             name: formData.name,
             email: formData.email,
@@ -101,7 +105,13 @@ const Contact: React.FC = () => {
           'contact'
         );
         
-        console.log('Email notification for contact form completed');
+        console.log('Email notification result:', emailResult);
+        
+        if (!emailResult.success) {
+          console.warn('Email notification failed but form was submitted:', emailResult.error);
+        } else {
+          console.log('Email notification for contact form completed successfully');
+        }
       }
       
       setSubmitSuccess(true);
