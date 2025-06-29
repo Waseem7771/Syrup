@@ -1,5 +1,6 @@
 // deno run --allow-env --allow-net edge.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -25,7 +26,7 @@ serve(async (req)=>{
     }
 
     // --- 3. Build e-mail
-    const { subject, html } = buildEmail(type, record);
+    const { subject, html } = await buildEmail(type, record);
     if (!subject) {
       return json({
         error: "Unknown email type"
@@ -79,7 +80,16 @@ function json(body, status = 200) {
   });
 }
 
-function buildEmail(type, record) {
+async function buildEmail(type, record) {
+  // Initialize Supabase client for storage operations
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  
+  let supabase;
+  if (supabaseUrl && supabaseServiceKey) {
+    supabase = createClient(supabaseUrl, supabaseServiceKey);
+  }
+
   switch(type){
     case "registration":
       // Format services for better readability
@@ -143,6 +153,48 @@ function buildEmail(type, record) {
       };
 
     case "visa":
+      // Generate signed URLs for uploaded files if Supabase client is available
+      let passportUrl = '';
+      let photoUrl = '';
+      let businessDocsUrl = '';
+      
+      if (supabase) {
+        try {
+          // Generate signed URLs with 1 year expiration (31536000 seconds)
+          if (record.passport_scan_url) {
+            const { data: passportData } = await supabase.storage
+              .from('visa-documents')
+              .createSignedUrl(record.passport_scan_url, 31536000);
+            
+            if (passportData?.signedUrl) {
+              passportUrl = passportData.signedUrl;
+            }
+          }
+          
+          if (record.photograph_url) {
+            const { data: photoData } = await supabase.storage
+              .from('visa-documents')
+              .createSignedUrl(record.photograph_url, 31536000);
+            
+            if (photoData?.signedUrl) {
+              photoUrl = photoData.signedUrl;
+            }
+          }
+          
+          if (record.business_documents_url) {
+            const { data: docsData } = await supabase.storage
+              .from('visa-documents')
+              .createSignedUrl(record.business_documents_url, 31536000);
+            
+            if (docsData?.signedUrl) {
+              businessDocsUrl = docsData.signedUrl;
+            }
+          }
+        } catch (error) {
+          console.error("Error generating signed URLs:", error);
+        }
+      }
+
       return {
         subject: `New Visa Application: ${record.full_name}`,
         html: `
@@ -172,9 +224,9 @@ function buildEmail(type, record) {
           </div>
           
           <h2>Document Uploads</h2>
-          <p><b>Passport Scan:</b> ${record.passport_scan_url ? 'Uploaded' : 'Not uploaded'}</p>
-          <p><b>Photograph:</b> ${record.photograph_url ? 'Uploaded' : 'Not uploaded'}</p>
-          <p><b>Business Documents:</b> ${record.business_documents_url ? 'Uploaded' : 'Not uploaded'}</p>
+          <p><b>Passport Scan:</b> ${passportUrl ? `<a href="${passportUrl}" target="_blank">View Passport Scan</a> (Link valid for 1 year)` : 'Not uploaded'}</p>
+          <p><b>Photograph:</b> ${photoUrl ? `<a href="${photoUrl}" target="_blank">View Photograph</a> (Link valid for 1 year)` : 'Not uploaded'}</p>
+          <p><b>Business Documents:</b> ${businessDocsUrl ? `<a href="${businessDocsUrl}" target="_blank">View Business Documents</a> (Link valid for 1 year)` : 'Not uploaded'}</p>
           
           <p><b>Submission Date:</b> ${record.created_at ? new Date(record.created_at).toLocaleString() : new Date().toLocaleString()}</p>
         `
