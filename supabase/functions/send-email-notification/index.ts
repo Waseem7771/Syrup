@@ -25,9 +25,14 @@ serve(async (req) => {
     );
 
     // Get the request body
-    const { record, type } = await req.json();
+    const requestBody = await req.json();
+    console.log('Received request body:', JSON.stringify(requestBody, null, 2));
+    
+    // Extract record and type from the request body
+    const { record, type } = requestBody;
     
     console.log('Received notification request:', { type, recordId: record?.id });
+    console.log('Full record data:', JSON.stringify(record, null, 2));
 
     // Email configuration
     const emailTo = 'Sketcher.7771@gmail.com'; // Your email
@@ -41,7 +46,7 @@ serve(async (req) => {
       subject = `New Company Registration: ${record.company_name}`;
       content = `
         <h1>New Company Registration</h1>
-        <p><strong>ID:</strong> ${record.id}</p>
+        <p><strong>ID:</strong> ${record.id || 'N/A'}</p>
         <p><strong>Company Name:</strong> ${record.company_name}</p>
         <p><strong>Company Type:</strong> ${record.company_type}</p>
         <p><strong>Business Activity:</strong> ${record.business_activity}</p>
@@ -58,13 +63,13 @@ serve(async (req) => {
         <p><strong>Requires Consultation:</strong> ${record.requires_consultation ? 'Yes' : 'No'}</p>
         <h2>Requested Services</h2>
         <ul>
-          ${record.services.fullfinancial ? '<li>Full Company Registration</li>' : ''}
-          ${record.services.technicalConsultation ? '<li>Technical Consultation</li>' : ''}
-          ${record.services.businessPlan ? '<li>Business Plan Preparation</li>' : ''}
-          ${record.services.workspace ? '<li>Secure Workspace</li>' : ''}
+          ${record.services && record.services.fullfinancial ? '<li>Full Company Registration</li>' : ''}
+          ${record.services && record.services.technicalConsultation ? '<li>Technical Consultation</li>' : ''}
+          ${record.services && record.services.businessPlan ? '<li>Business Plan Preparation</li>' : ''}
+          ${record.services && record.services.workspace ? '<li>Secure Workspace</li>' : ''}
         </ul>
-        <p><strong>Created At:</strong> ${record.created_at}</p>
-        <p><strong>Status:</strong> ${record.status}</p>
+        <p><strong>Created At:</strong> ${record.created_at || new Date().toISOString()}</p>
+        <p><strong>Status:</strong> ${record.status || 'pending'}</p>
       `;
     } else if (type === 'contact') {
       subject = `New Contact Message: ${record.subject || 'No Subject'}`;
@@ -101,10 +106,11 @@ serve(async (req) => {
         <p>Documents have been uploaded to Supabase Storage.</p>
       `;
     } else if (type === 'idea') {
-      subject = `New Business Idea Submission: ${record.subject.replace('Idea Submission: ', '')}`;
+      const topic = record.subject ? record.subject.replace('Idea Submission: ', '') : 'No Topic';
+      subject = `New Business Idea Submission: ${topic}`;
       content = `
         <h1>New Business Idea Submission</h1>
-        <p><strong>Topic:</strong> ${record.subject.replace('Idea Submission: ', '')}</p>
+        <p><strong>Topic:</strong> ${topic}</p>
         <h2>Idea Description</h2>
         <p>${record.message}</p>
         <h2>Contact Information</h2>
@@ -116,6 +122,7 @@ serve(async (req) => {
 
     console.log(`Preparing to send email to: ${emailTo}`);
     console.log(`Subject: ${subject}`);
+    console.log(`Email content preview: ${content.substring(0, 100)}...`);
     
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
     
@@ -146,10 +153,11 @@ serve(async (req) => {
       throw new Error(`Failed to send email: ${resendResponse.statusText}`);
     }
     
-    console.log('Email sent successfully via Resend!');
+    const resendData = await resendResponse.json();
+    console.log('Email sent successfully via Resend!', resendData);
     
     return new Response(
-      JSON.stringify({ success: true, message: 'Notification sent' }),
+      JSON.stringify({ success: true, message: 'Notification sent', data: resendData }),
       { 
         headers: { 
           ...corsHeaders,
@@ -159,6 +167,7 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error('Error sending notification:', error);
+    console.error('Error details:', error.stack || 'No stack trace available');
     
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
