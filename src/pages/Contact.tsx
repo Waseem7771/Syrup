@@ -81,7 +81,9 @@ const Contact: React.FC = () => {
             message: formData.message,
             status: 'unread'
           }
-        ]);
+        ])
+        .select()
+        .single();
       
       if (error) {
         console.error('Error submitting to Supabase:', error);
@@ -94,16 +96,7 @@ const Contact: React.FC = () => {
       if (data) {
         console.log('Attempting to send email notification for contact form...');
         
-        const emailResult = await sendEmailNotification(
-          {
-            name: formData.name,
-            email: formData.email,
-            phone: formData.phone,
-            subject: formData.subject,
-            message: formData.message
-          }, 
-          'contact'
-        );
+        const emailResult = await sendEmailNotification(data, 'contact');
         
         console.log('Email notification result:', emailResult);
         

@@ -146,30 +146,15 @@ const VisaResidency: React.FC = () => {
             reference_number: refNumber,
             status: 'pending'
           }
-        ]);
+        ])
+        .select()
+        .single();
       
       if (error) throw error;
       
       // Send email notification
       if (data) {
-        await sendEmailNotification(
-          {
-            service_type: formData.serviceType,
-            full_name: formData.fullName,
-            nationality: formData.nationality,
-            passport_number: formData.passportNumber,
-            passport_expiry: formData.passportExpiry,
-            email: formData.email,
-            phone: formData.phone,
-            company_name: formData.companyName,
-            business_type: formData.businessType,
-            planned_stay_duration: formData.plannedStayDuration,
-            entry_date: formData.entryDate,
-            purpose_of_stay: formData.purposeOfStay,
-            reference_number: refNumber
-          }, 
-          'visa'
-        );
+        await sendEmailNotification(data, 'visa');
       }
       
       setReferenceNumber(refNumber);

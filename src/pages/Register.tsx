@@ -91,6 +91,7 @@ const Register: React.FC = () => {
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     setIsSubmitting(true);
     
     try {
@@ -116,7 +117,9 @@ const Register: React.FC = () => {
             requires_consultation: formData.requires_consultation,
             services: formData.services
           }
-        ]);
+        ])
+        .select()
+        .single();
       
       if (error) {
         console.error('Error submitting to Supabase:', error);
@@ -129,13 +132,7 @@ const Register: React.FC = () => {
       if (data) {
         console.log('Attempting to send email notification for registration...');
         
-        const record = data[0]; // Get the first record from the inserted data
-        console.log('Record to send in notification:', JSON.stringify(record, null, 2));
-        
-        const emailResult = await sendEmailNotification(
-          record,
-          'registration'
-        );
+        const emailResult = await sendEmailNotification(data, 'registration');
         
         console.log('Email notification result:', emailResult);
         
@@ -211,7 +208,9 @@ const Register: React.FC = () => {
             message: ideaText,
             status: 'unread'
           }
-        ]);
+        ])
+        .select()
+        .single();
       
       if (error) {
         console.error('Error submitting to Supabase:', error);
@@ -224,16 +223,7 @@ const Register: React.FC = () => {
       if (data) {
         console.log('Attempting to send email notification for idea submission...');
         
-        const emailResult = await sendEmailNotification(
-          {
-            name: ideaContact.name,
-            email: ideaContact.email,
-            phone: ideaContact.phone,
-            subject: `Idea Submission: ${ideaTopic}`,
-            message: ideaText
-          }, 
-          'idea'
-        );
+        const emailResult = await sendEmailNotification(data, 'idea');
         
         console.log('Email notification result:', emailResult);
         
