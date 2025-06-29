@@ -66,6 +66,8 @@ const Contact: React.FC = () => {
     setIsSubmitting(true);
     
     try {
+      console.log('Submitting contact form...');
+      
       // Submit to Supabase
       const { data, error } = await supabase
         .from('contact_messages')
@@ -82,8 +84,12 @@ const Contact: React.FC = () => {
       
       if (error) throw error;
       
+      console.log('Contact form submitted successfully:', data);
+      
       // Send email notification
       if (data) {
+        console.log('Attempting to send email notification for contact form...');
+        
         await sendEmailNotification(
           {
             name: formData.name,
@@ -94,6 +100,8 @@ const Contact: React.FC = () => {
           }, 
           'contact'
         );
+        
+        console.log('Email notification for contact form completed');
       }
       
       setSubmitSuccess(true);
@@ -109,7 +117,7 @@ const Contact: React.FC = () => {
       });
       
     } catch (error) {
-      console.error('Error submitting form:', error);
+      console.error('Error submitting contact form:', error);
       toast.error(language === 'ar' 
         ? 'حدث خطأ أثناء إرسال الرسالة. يرجى المحاولة مرة أخرى.'
         : 'An error occurred while sending your message. Please try again.');
