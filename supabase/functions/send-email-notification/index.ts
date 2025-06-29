@@ -26,6 +26,7 @@ serve(async (req) => {
 
     // Get the request body
     const { record, type } = await req.json();
+    
     console.log('Received notification request:', { type, recordId: record?.id });
 
     // Email configuration
