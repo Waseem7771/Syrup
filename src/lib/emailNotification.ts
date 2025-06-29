@@ -9,6 +9,7 @@ export const sendEmailNotification = async (record: any, type: 'registration' | 
   try {
     console.log('Sending email notification:', { type, record });
     
+    console.log('Attempting to invoke Edge Function...');
     const { data, error } = await supabase.functions.invoke('send-email-notification', {
       body: { record, type }
     });
@@ -21,7 +22,7 @@ export const sendEmailNotification = async (record: any, type: 'registration' | 
     console.log('Email notification sent successfully:', data);
     return { success: true, data };
   } catch (error) {
-    console.error('Exception sending email notification:', error);
+    console.error('!!! EXCEPTION IN SEND EMAIL NOTIFICATION:', error);
     return { success: false, error };
   }
 };
