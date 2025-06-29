@@ -15,7 +15,10 @@ export const sendEmailNotification = async (record: any, type: 'registration' | 
     console.log(`Invoking Edge Function: ${functionName}`);
     
     // Prepare the payload in the expected format
-    const payload = { record, type };
+    const payload = { 
+      type: type,
+      record: record 
+    };
     console.log('Payload being sent:', JSON.stringify(payload, null, 2));
     
     const { data, error } = await supabase.functions.invoke(functionName, {
