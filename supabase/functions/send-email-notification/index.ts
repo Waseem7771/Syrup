@@ -41,6 +41,7 @@ serve(async (req) => {
       subject = `New Company Registration: ${record.company_name}`;
       content = `
         <h1>New Company Registration</h1>
+        <p><strong>ID:</strong> ${record.id}</p>
         <p><strong>Company Name:</strong> ${record.company_name}</p>
         <p><strong>Company Type:</strong> ${record.company_type}</p>
         <p><strong>Business Activity:</strong> ${record.business_activity}</p>
@@ -58,10 +59,12 @@ serve(async (req) => {
         <h2>Requested Services</h2>
         <ul>
           ${record.services.fullfinancial ? '<li>Full Company Registration</li>' : ''}
-          ${record.services.technicalConsultation ? '<li>Legal Consultation</li>' : ''}
+          ${record.services.technicalConsultation ? '<li>Technical Consultation</li>' : ''}
           ${record.services.businessPlan ? '<li>Business Plan Preparation</li>' : ''}
           ${record.services.workspace ? '<li>Secure Workspace</li>' : ''}
         </ul>
+        <p><strong>Created At:</strong> ${record.created_at}</p>
+        <p><strong>Status:</strong> ${record.status}</p>
       `;
     } else if (type === 'contact') {
       subject = `New Contact Message: ${record.subject || 'No Subject'}`;
@@ -105,26 +108,14 @@ serve(async (req) => {
         <h2>Idea Description</h2>
         <p>${record.message}</p>
         <h2>Contact Information</h2>
-        <p><strong>name:</strong> ${record.name}</p>
-        <p><strong>email:</strong> ${record.email}</p>
-        <p><strong>phone:</strong> ${record.phone || 'Not provided'}</p>
+        <p><strong>Name:</strong> ${record.name}</p>
+        <p><strong>Email:</strong> ${record.email}</p>
+        <p><strong>Phone:</strong> ${record.phone || 'Not provided'}</p>
       `;
     }
-    {
-
-  "type": "contact"
-}
-
 
     console.log(`Preparing to send email to: ${emailTo}`);
     console.log(`Subject: ${subject}`);
-    
-    // In a real implementation, you would use an email service API here
-    // For now, we'll just log the email content for debugging
-    console.log('Email content prepared, would send email with content:', content.substring(0, 100) + '...');
-    
-    // You need to set up an email service like Resend, SendGrid, etc.
-    // Here's an example with Resend:
     
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
     
